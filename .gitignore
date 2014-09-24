@@ -1,0 +1,6 @@
+**/bin
+**/obj
+
+**/report.csv
+
+*.suo
