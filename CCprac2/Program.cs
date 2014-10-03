@@ -66,23 +66,6 @@ namespace NetwProg
                     TcpClient c = new TcpClient("localhost", remotePort);
                     AddClient(c);
                 }
-                switch (s[0])
-                {
-                    case "B":
-                        int remotePort = int.Parse(s[1]);
-                        connections[int.Parse(s[1])].SendMessage(s[2]);
-                        break;
-                    case "D":
-                        int remotePort = int.Parse(s[1]);
-                        if (connections.ContainsKey())
-                        connections[int.Parse(s[1])].Disconnect(Client.DisconnectReason.Command);
-                        break;
-                    case "C":
-                        int remotePort = int.Parse(s[1]);
-                        TcpClient c = new TcpClient("localhost", remotePort);
-                        AddClient(c);
-                        break;
-                }
             }
             
 
