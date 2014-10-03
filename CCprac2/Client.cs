@@ -38,7 +38,7 @@ namespace NetwProg
 
             RemotePort = int.Parse(clientIn.ReadLine());
 
-            Console.WriteLine("//Connected to: " + RemotePort);
+            Console.WriteLine("Verbonden: " + RemotePort);
 
             Thread t = new Thread(ReadMessages);
             t.Start();
@@ -64,6 +64,7 @@ namespace NetwProg
             clientIn.Dispose();
             if (ConnectionClosed != null)
                 ConnectionClosed(RemotePort);
+            Console.WriteLine("Verbroken: " + RemotePort);
             Console.WriteLine("//Disconnected from: " + RemotePort + " | Reason: " + reason);
         }
 

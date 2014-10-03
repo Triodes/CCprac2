@@ -52,13 +52,18 @@ namespace NetwProg
                 if (s[0] == "B")
                 {
                     int remotePort = int.Parse(s[1]);
-                    connections[remotePort].SendMessage(s[2]);
+                    if (connections.ContainsKey(remotePort))
+                        connections[remotePort].SendMessage(s[2]);
+                    else
+                        Console.WriteLine(string.Format("Poort {0} is niet bekend", remotePort));
                 }
                 else if (s[0] == "D")
                 {
                     int remotePort = int.Parse(s[1]);
                     if (connections.ContainsKey(remotePort))
                         connections[remotePort].Disconnect(Client.DisconnectReason.Command);
+                    else
+                        Console.WriteLine(string.Format("Poort {0} is niet bekend", remotePort));
                 }
                 else if (s[0] == "C")
                 {
