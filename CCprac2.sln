@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCprac2", "CCprac2\CCprac2.csproj", "{3A5E9D22-490D-4282-9031-3CE3F3683911}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetwProg", "CCprac2\NetwProg.csproj", "{3A5E9D22-490D-4282-9031-3CE3F3683911}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

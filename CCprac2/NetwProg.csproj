@@ -7,8 +7,8 @@
     <ProjectGuid>{3A5E9D22-490D-4282-9031-3CE3F3683911}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>CCprac2</RootNamespace>
-    <AssemblyName>CCprac2</AssemblyName>
+    <RootNamespace>NetwProg</RootNamespace>
+    <AssemblyName>NetwProg</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
