@@ -16,7 +16,7 @@ namespace NetwProg
         const int portLowerBound = 55500;
 
         public static int myPort;
-        int[] myNeighbors;
+        List<int> myNeighbors;
         public Client[] connections;
         static void Main(string[] args)
         {
@@ -26,10 +26,10 @@ namespace NetwProg
         public Program(string[] input)
         {
             myPort = ConvertFromPort(int.Parse(input[0]));
-            myNeighbors = new int[input.Length - 1];
+            myNeighbors = new List<int>();
             for (int i = 1; i < input.Length; i++)
             {
-                myNeighbors[i-1] = ConvertFromPort(int.Parse(input[i]));
+                myNeighbors.Add(ConvertFromPort(int.Parse(input[i])));
             }
 
             connections = new Client[maxNodes];
@@ -40,7 +40,7 @@ namespace NetwProg
             Thread t = new Thread(listener.Listen);
             t.Start(this);
 
-            for (int i = 0; i < myNeighbors.Length; i++)
+            for (int i = 0; i < myNeighbors.Count; i++)
             {
                 if (myNeighbors[i] > myPort)
                 {
@@ -52,7 +52,7 @@ namespace NetwProg
             ReadConsoleInput();
         }
 
-        void ReadConsoleInput()
+        private void ReadConsoleInput()
         {
             while (true)
             {
@@ -78,6 +78,8 @@ namespace NetwProg
                     int remotePort = ConvertFromPort(int.Parse(s[1]));
                     TcpClient c = new TcpClient("localhost", remotePort);
                     AddClient(c);
+                    connections[remotePort].SendMessage("new," + myPort);
+                    NewConnection(remotePort);
                 }
             }
         }
@@ -92,7 +94,17 @@ namespace NetwProg
             connections[client.RemotePort] = client;
         }
 
-        public void HandleMessage(string message, int remotePort)
+        private void NewConnection(int remotePort)
+        {
+            myNeighbors.Add(remotePort);
+            for (int i = 0; i < maxNodes; i++)
+            {
+                ndis[remotePort][i] = maxNodes;
+                SendMyDist(remotePort, i, D[i]);
+            }
+        }
+
+        private void HandleMessage(string message, int remotePort)
         {
             string[] mParts = message.Split(',');
             if (mParts[0] == "myDist")
@@ -116,16 +128,26 @@ namespace NetwProg
                     Console.WriteLine(string.Format("//Message for: {0} forwarded to: {1}",destination, nextHop));
                 }
             }
+            else if (mParts[0] == "new")
+            {
+                NewConnection(int.Parse(mParts[1]));
+            }
         }
 
-        public void ConnectionClosed(int remotePort)
+        private void ConnectionClosed(int remotePort)
         {
             connections[remotePort] = null;
+            myNeighbors.Remove(remotePort);
+            for (int v = 0; v < maxNodes; v++)
+            {
+                if (Nb[v] == remotePort)
+                    Recompute(v);
+            }
         }
 
-        private void SendMyDist(int remotePort)
+        private void SendMyDist(int remotePort, int node, int value)
         {
-            connections[remotePort].SendMessage(String.Format("myDist,{0},0", myPort));
+            connections[remotePort].SendMessage(String.Format("myDist,{0},{1}", node, value));
         }
 
         private void SendTextMessage(int remotePort, string message)
@@ -155,7 +177,7 @@ namespace NetwProg
         int[] D = new int[maxNodes];
         int[] Nb = new int[maxNodes];
 
-        public void Init()
+        private void Init()
         {
             for (int i = 0; i < maxNodes; i++)
             {
@@ -175,13 +197,13 @@ namespace NetwProg
             D[myPort] = 0;
             Nb[myPort] = myPort;
 
-            for (int i = 0; i < myNeighbors.Length; i++)
+            Parallel.For(0, myNeighbors.Count, (int iterator) =>
             {
-                SendMyDist(myNeighbors[i]);
-            }
+                SendMyDist(myNeighbors[iterator], myPort, 0);
+            });
         }
 
-        void Recompute(int remotePort)
+        private void Recompute(int remotePort)
         {
             int CurrentDv = D[remotePort];
             if (remotePort == myPort)
@@ -192,7 +214,7 @@ namespace NetwProg
             else
             {
                 int d = int.MaxValue, bestNb = -1;
-                for (int i = 0; i < myNeighbors.Length; i++)
+                for (int i = 0; i < myNeighbors.Count; i++)
                 {
                     int temp = ndis[myNeighbors[i]][remotePort];
                     if (temp < d)
@@ -216,9 +238,9 @@ namespace NetwProg
 
             if (D[remotePort] != CurrentDv)
             {
-                Parallel.For(0, myNeighbors.Length, (int iterator) =>
+                Parallel.For(0, myNeighbors.Count, (int iterator) =>
                 {
-                    SendMyDist(myNeighbors[iterator]);
+                    SendMyDist(myNeighbors[iterator], remotePort, D[remotePort]);
                 });
             }
         }
