@@ -38,7 +38,7 @@ namespace NetwProg
 
             RemotePort = int.Parse(clientIn.ReadLine());
 
-            Console.WriteLine("Verbonden: " + RemotePort);
+            Console.WriteLine("Verbonden: " + Program.ConvertToPort(RemotePort));
 
             Thread t = new Thread(ReadMessages);
             t.Start();

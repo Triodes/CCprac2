@@ -17,7 +17,7 @@ namespace NetwProg
 
         public static int myPort;
         int[] myNeighbors;
-        public Dictionary<int, Client> connections;
+        public Client[] connections;
         static void Main(string[] args)
         {
             Program p = new Program(args);
@@ -25,16 +25,16 @@ namespace NetwProg
 
         public Program(string[] input)
         {
-            myPort = int.Parse(input[0]);
+            myPort = ConvertFromPort(int.Parse(input[0]));
             myNeighbors = new int[input.Length - 1];
             for (int i = 1; i < input.Length; i++)
             {
-                myNeighbors[i-1] = int.Parse(input[i]);
+                myNeighbors[i-1] = ConvertFromPort(int.Parse(input[i]));
             }
 
-            connections = new Dictionary<int, Client>();
+            connections = new Client[maxNodes];
 
-            Console.Title = "Netchange " + myPort;          
+            Console.Title = "Netchange " + ConvertToPort(myPort);          
 
             Listener listener = new Listener();
             Thread t = new Thread(listener.Listen);
@@ -49,64 +49,111 @@ namespace NetwProg
                 }
             }
 
+            ReadConsoleInput();
+        }
+
+        void ReadConsoleInput()
+        {
             while (true)
             {
                 string[] s = Console.ReadLine().Split();
                 if (s[0] == "B")
                 {
-                    int remotePort = int.Parse(s[1]);
-                    if (connections.ContainsKey(remotePort))
+                    int remotePort = ConvertFromPort(int.Parse(s[1]));
+                    if (Nb[remotePort] != -1)
                         connections[remotePort].SendMessage(s[2]);
                     else
-                        Console.WriteLine(string.Format("Poort {0} is niet bekend", remotePort));
+                        Console.WriteLine(string.Format("Poort {0} is niet bekend", ConvertToPort(remotePort)));
                 }
                 else if (s[0] == "D")
                 {
-                    int remotePort = int.Parse(s[1]);
-                    if (connections.ContainsKey(remotePort))
+                    int remotePort = ConvertFromPort(int.Parse(s[1]));
+                    if (Nb[remotePort] != -1)
                         connections[remotePort].Disconnect(Client.DisconnectReason.Command);
                     else
-                        Console.WriteLine(string.Format("Poort {0} is niet bekend", remotePort));
+                        Console.WriteLine(string.Format("Poort {0} is niet bekend", ConvertToPort(remotePort)));
                 }
                 else if (s[0] == "C")
                 {
-                    int remotePort = int.Parse(s[1]);
+                    int remotePort = ConvertFromPort(int.Parse(s[1]));
                     TcpClient c = new TcpClient("localhost", remotePort);
                     AddClient(c);
                 }
             }
-            
-
-            t.Join();
         }
+
+        #region Client Handling
 
         public void AddClient(TcpClient temp)
         {
             Client client = new Client(temp);
             client.MessageRecieved += HandleMessage;
             client.ConnectionClosed += ConnectionClosed;
-            connections.Add(client.RemotePort, client);
+            connections[client.RemotePort] = client;
         }
 
         public void HandleMessage(string message, int remotePort)
         {
-            Console.WriteLine("//Message recieved from: " + remotePort);
-            Console.WriteLine(message);
+            string[] mParts = message.Split(',');
+            if (mParts[0] == "myDist")
+            {
+                int v = int.Parse(mParts[1]);
+                ndis[remotePort][v] = int.Parse(mParts[2]);
+                Recompute(v);
+            }
+            else if (mParts[0] == "message")
+            {
+                int destination = int.Parse(mParts[1]);
+                if (destination == myPort)
+                {
+                    Console.WriteLine("//Message recieved from: " + remotePort);
+                    Console.WriteLine(mParts[2]);
+                }
+                else
+                {
+                    int nextHop = Nb[destination];
+                    SendTextMessage(destination, mParts[2]);
+                    Console.WriteLine(string.Format("//Message for: {0} forwarded to: {1}",destination, nextHop));
+                }
+            }
         }
 
         public void ConnectionClosed(int remotePort)
         {
-            connections.Remove(remotePort);
+            connections[remotePort] = null;
         }
+
+        private void SendMyDist(int remotePort)
+        {
+            connections[remotePort].SendMessage(String.Format("myDist,{0},0", myPort));
+        }
+
+        private void SendTextMessage(int remotePort, string message)
+        {
+            connections[remotePort].SendMessage(String.Format("message,{0},{1}", myPort, message));
+        }
+
+        #endregion
+
+        #region Port Conversion
+
+        public static int ConvertFromPort(int port)
+        {
+            return port - portLowerBound;
+        }
+
+        public static int ConvertToPort(int index)
+        {
+            return index + portLowerBound;
+        }
+
+        #endregion
+
+        #region Routing
 
         int[][] ndis = new int[maxNodes][];
         int[] D = new int[maxNodes];
         int[] Nb = new int[maxNodes];
-
-        int ConvertPort(int port)
-        {
-            return port - portLowerBound;
-        }
 
         public void Init()
         {
@@ -124,11 +171,58 @@ namespace NetwProg
                 D[i] = maxNodes;
                 Nb[i] = -1;
             }
-            
 
+            D[myPort] = 0;
+            Nb[myPort] = myPort;
 
+            for (int i = 0; i < myNeighbors.Length; i++)
+            {
+                SendMyDist(myNeighbors[i]);
+            }
         }
+
+        void Recompute(int remotePort)
+        {
+            int CurrentDv = D[remotePort];
+            if (remotePort == myPort)
+            {
+                D[remotePort] = 0;
+                Nb[remotePort] = remotePort;
+            }
+            else
+            {
+                int d = int.MaxValue, bestNb = -1;
+                for (int i = 0; i < myNeighbors.Length; i++)
+                {
+                    int temp = ndis[myNeighbors[i]][remotePort];
+                    if (temp < d)
+                    {
+                        d = temp;
+                        bestNb = myNeighbors[i];
+                    }
+                }
+
+                if (d < maxNodes)
+                {
+                    D[remotePort] = d;
+                    Nb[remotePort] = bestNb;
+                }
+                else
+                {
+                    D[remotePort] = maxNodes;
+                    Nb[remotePort] = -1;
+                }
+            }
+
+            if (D[remotePort] != CurrentDv)
+            {
+                Parallel.For(0, myNeighbors.Length, (int iterator) =>
+                {
+                    SendMyDist(myNeighbors[iterator]);
+                });
+            }
+        }
+
+        #endregion
     }
-
-
 }

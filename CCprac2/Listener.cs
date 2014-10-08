@@ -15,7 +15,7 @@ namespace NetwProg
         {
             server = new TcpListener(IPAddress.Any, Program.myPort);
             server.Start();
-            Console.WriteLine("//listening on port " + Program.myPort);
+            Console.WriteLine("//listening on port " + Program.ConvertToPort(Program.myPort));
             try
             {
                 while (true)
