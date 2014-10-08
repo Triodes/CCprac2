@@ -47,6 +47,7 @@ namespace NetwProg
         public void SendMessage(string message)
         {
             clientOut.WriteLine(message);
+            //Console.WriteLine("//sent something to: " + RemotePort);
         }
 
         public enum DisconnectReason
@@ -75,12 +76,13 @@ namespace NetwProg
                 try
                 {
                     string s = clientIn.ReadLine();
+                    //Console.WriteLine("//got something from: " + RemotePort);
                     if (s == "closing")
                         Disconnect(DisconnectReason.Message);
                     else
                         MessageRecieved(s, RemotePort);
                 }
-                catch { }
+                catch { Console.WriteLine("//exception caught"); }
             }
         }
 

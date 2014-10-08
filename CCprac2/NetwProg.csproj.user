@@ -3,7 +3,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartAction>Project</StartAction>
     <StartProgram>C:\Users\Aron List\Desktop\CCprac2\CCprac2\bin\Debug\Standard.bat</StartProgram>
-    <StartArguments>1100 1101</StartArguments>
+    <StartArguments>55501 55500</StartArguments>
   </PropertyGroup>
   <PropertyGroup>
     <PublishUrlHistory>publish\</PublishUrlHistory>

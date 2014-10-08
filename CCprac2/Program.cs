@@ -40,6 +40,8 @@ namespace NetwProg
             Thread t = new Thread(listener.Listen);
             t.Start(this);
 
+            Init();
+
             for (int i = 0; i < myNeighbors.Count; i++)
             {
                 if (myNeighbors[i] > myPort)
@@ -49,8 +51,16 @@ namespace NetwProg
                 }
             }
 
+            Thread.Sleep(1500 + 3000 * myPort);
+
+            SendInit();
+
+            Init();
+
             ReadConsoleInput();
         }
+
+        #region Input Handling
 
         private void ReadConsoleInput()
         {
@@ -60,8 +70,15 @@ namespace NetwProg
                 if (s[0] == "B")
                 {
                     int remotePort = ConvertFromPort(int.Parse(s[1]));
-                    if (Nb[remotePort] != -1)
-                        connections[remotePort].SendMessage(s[2]);
+                    string message = string.Join(" ",s.Skip(2));
+                    if (remotePort == myPort)
+                    {
+                        Console.WriteLine(message);
+                    }                    
+                    else if (Nb[remotePort] != -1)
+                    {                      
+                        SendTextMessage(Nb[remotePort], remotePort, message);
+                    }
                     else
                         Console.WriteLine(string.Format("Poort {0} is niet bekend", ConvertToPort(remotePort)));
                 }
@@ -81,10 +98,61 @@ namespace NetwProg
                     connections[remotePort].SendMessage("new," + myPort);
                     NewConnection(remotePort);
                 }
+                else if (s[0] == "R")
+                {
+                    PrintTable();
+                }
             }
         }
 
+        private void PrintTable()
+        {
+            for (int i = 0; i < maxNodes; i++)
+            {
+                string prefered = i == myPort ? "local" : ConvertToPort(Nb[i]).ToString();
+                int distance = D[i];
+                //if (distance < maxNodes)
+                    Console.WriteLine("{0} {1} {2}", ConvertToPort(i), distance, prefered);
+            }
+        }
+
+        #endregion
+
         #region Client Handling
+
+        private void HandleMessage(string message, int remotePort)
+        {
+            string[] mParts = message.Split(',');
+            if (mParts[0] == "myDist")
+            {
+                int v = int.Parse(mParts[1]);
+                ndis[remotePort][v] = int.Parse(mParts[2]);
+                Console.WriteLine("//got mydist from {0}: {1},{2}", remotePort, mParts[1], mParts[2]);
+                Recompute(v);
+            }
+            else if (mParts[0] == "message")
+            {
+                int destination = int.Parse(mParts[1]);
+                if (destination == myPort)
+                {
+                    Console.WriteLine(mParts[2]);
+                }
+                else
+                {
+                    int nextHop = Nb[destination];
+                    SendTextMessage(nextHop, destination, mParts[2]);
+                    Console.WriteLine("//Message for: {0} forwarded to: {1}", destination, nextHop);
+                }
+            }
+            else if (mParts[0] == "new")
+            {
+                NewConnection(int.Parse(mParts[1]));
+            }
+            else
+            {
+                Console.WriteLine("//unknown message type");
+            }
+        }
 
         public void AddClient(TcpClient temp)
         {
@@ -104,36 +172,6 @@ namespace NetwProg
             }
         }
 
-        private void HandleMessage(string message, int remotePort)
-        {
-            string[] mParts = message.Split(',');
-            if (mParts[0] == "myDist")
-            {
-                int v = int.Parse(mParts[1]);
-                ndis[remotePort][v] = int.Parse(mParts[2]);
-                Recompute(v);
-            }
-            else if (mParts[0] == "message")
-            {
-                int destination = int.Parse(mParts[1]);
-                if (destination == myPort)
-                {
-                    Console.WriteLine("//Message recieved from: " + remotePort);
-                    Console.WriteLine(mParts[2]);
-                }
-                else
-                {
-                    int nextHop = Nb[destination];
-                    SendTextMessage(destination, mParts[2]);
-                    Console.WriteLine(string.Format("//Message for: {0} forwarded to: {1}",destination, nextHop));
-                }
-            }
-            else if (mParts[0] == "new")
-            {
-                NewConnection(int.Parse(mParts[1]));
-            }
-        }
-
         private void ConnectionClosed(int remotePort)
         {
             connections[remotePort] = null;
@@ -148,11 +186,12 @@ namespace NetwProg
         private void SendMyDist(int remotePort, int node, int value)
         {
             connections[remotePort].SendMessage(String.Format("myDist,{0},{1}", node, value));
+            Console.WriteLine("//sent mydist to {0}: {1},{2}", remotePort, node, value);
         }
 
-        private void SendTextMessage(int remotePort, string message)
+        private void SendTextMessage(int prefered, int destination, string message)
         {
-            connections[remotePort].SendMessage(String.Format("message,{0},{1}", myPort, message));
+            connections[prefered].SendMessage(String.Format("message,{0},{1}", destination, message));
         }
 
         #endregion
@@ -196,7 +235,10 @@ namespace NetwProg
 
             D[myPort] = 0;
             Nb[myPort] = myPort;
+        }
 
+        private void SendInit()
+        {
             Parallel.For(0, myNeighbors.Count, (int iterator) =>
             {
                 SendMyDist(myNeighbors[iterator], myPort, 0);
@@ -205,7 +247,7 @@ namespace NetwProg
 
         private void Recompute(int remotePort)
         {
-            int CurrentDv = D[remotePort];
+            int CurrentDv = D[remotePort], bestNb = -1;
             if (remotePort == myPort)
             {
                 D[remotePort] = 0;
@@ -213,7 +255,7 @@ namespace NetwProg
             }
             else
             {
-                int d = int.MaxValue, bestNb = -1;
+                int d = int.MaxValue;
                 for (int i = 0; i < myNeighbors.Count; i++)
                 {
                     int temp = ndis[myNeighbors[i]][remotePort];
@@ -223,6 +265,8 @@ namespace NetwProg
                         bestNb = myNeighbors[i];
                     }
                 }
+
+                d++;
 
                 if (d < maxNodes)
                 {
@@ -238,6 +282,7 @@ namespace NetwProg
 
             if (D[remotePort] != CurrentDv)
             {
+                Console.WriteLine("Afstand naar {0} is nu {1} via {2}", ConvertToPort(remotePort), D[remotePort], ConvertToPort(bestNb));
                 Parallel.For(0, myNeighbors.Count, (int iterator) =>
                 {
                     SendMyDist(myNeighbors[iterator], remotePort, D[remotePort]);
