@@ -1,0 +1,37 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace NetwProg
+{
+    class Listener
+    {
+        TcpListener server;
+        public void Listen(object p)
+        {
+            server = new TcpListener(IPAddress.Any, Program.myPort);
+            server.Start();
+            Console.WriteLine("//listening on port " + Program.myPort);
+            try
+            {
+                while (true)
+                {
+                    TcpClient temp = server.AcceptTcpClient();
+                    Program pr = (p as Program);
+                    pr.AddClient(temp);
+                }
+            }
+            catch { }
+
+        }
+
+        public void Stop()
+        {
+            server.Stop();
+        }
+    }
+}

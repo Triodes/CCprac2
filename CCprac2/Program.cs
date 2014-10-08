@@ -12,6 +12,9 @@ namespace NetwProg
 {
     class Program
     {
+        const int maxNodes = 20;
+        const int portLowerBound = 55500;
+
         public static int myPort;
         int[] myNeighbors;
         public Dictionary<int, Client> connections;
@@ -95,33 +98,37 @@ namespace NetwProg
         {
             connections.Remove(remotePort);
         }
-    }
 
-    class Listener
-    {
-        TcpListener server;
-        public void Listen(object p)
+        int[][] ndis = new int[maxNodes][];
+        int[] D = new int[maxNodes];
+        int[] Nb = new int[maxNodes];
+
+        int ConvertPort(int port)
         {
-            server = new TcpListener(IPAddress.Any, Program.myPort);
-            server.Start();
-            Console.WriteLine("//listening on port " + Program.myPort);
-            try
+            return port - portLowerBound;
+        }
+
+        public void Init()
+        {
+            for (int i = 0; i < maxNodes; i++)
             {
-                while (true)
+                ndis[i] = new int[maxNodes];
+                for (int j = 0; j < maxNodes; j++)
                 {
-                    TcpClient temp = server.AcceptTcpClient();               
-                    Program pr = (p as Program);
-                    pr.AddClient(temp);
+                    ndis[i][j] = maxNodes;
                 }
             }
-            catch { }
 
-        }
+            for (int i = 0; i < maxNodes; i++)
+            {
+                D[i] = maxNodes;
+                Nb[i] = -1;
+            }
+            
 
-        public void Stop()
-        {
-            server.Stop();
+
         }
     }
+
 
 }
