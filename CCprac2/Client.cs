@@ -15,20 +15,21 @@ namespace NetwProg
         TcpClient socket;
         StreamReader clientIn;
         StreamWriter clientOut;
-
+        Queue<string> messageQueue;
+        MessageRecievedHandler mHandler;
+        ConnectionCLosedHandler cHandler;
         bool keepAlive = true;
 
         public delegate void MessageRecievedHandler(string message, int remotePort);
 
-        public event MessageRecievedHandler MessageRecieved;
-
         public delegate void ConnectionCLosedHandler(int remotePort);
 
-        public event ConnectionCLosedHandler ConnectionClosed;
-
-        public Client(TcpClient socket)
+        public Client(TcpClient socket, MessageRecievedHandler mHandler, ConnectionCLosedHandler cHandler)
         {
             this.socket = socket;
+            this.mHandler = mHandler;
+            this.cHandler = cHandler;
+
             clientIn = new StreamReader(socket.GetStream());
             clientOut = new StreamWriter(socket.GetStream());
 
@@ -44,7 +45,30 @@ namespace NetwProg
             t.Start();
         }
 
-        public void SendMessage(string message)
+        public void SetQueue(Queue<string> queue)
+        {
+            this.messageQueue = queue;
+
+            lock (messageQueue)
+            {
+                while (messageQueue.Count > 0)
+                {
+                    SendMessage(messageQueue.Dequeue());
+                }
+            }
+        }
+
+        public void SendMessage()
+        {
+            if (messageQueue != null)
+                lock (messageQueue)
+                {
+                    if (messageQueue.Count > 0)
+                        SendMessage(messageQueue.Dequeue());
+                }
+        }
+
+        void SendMessage(string message)
         {
             clientOut.WriteLine(message);
             //Console.WriteLine("//sent something to: " + RemotePort);
@@ -54,6 +78,7 @@ namespace NetwProg
         {
             Command,
             Message,
+            Termination
         }
 
         public void Disconnect(DisconnectReason reason)
@@ -63,26 +88,31 @@ namespace NetwProg
             socket.Close();
             clientOut.Dispose();
             clientIn.Dispose();
-            if (ConnectionClosed != null)
-                ConnectionClosed(RemotePort);
-            Console.WriteLine("Verbroken: " + RemotePort);
+            Console.WriteLine("Verbroken: " + Program.ConvertToPort(RemotePort));
             Console.WriteLine("//Disconnected from: " + RemotePort + " | Reason: " + reason);
+            cHandler(RemotePort);
         }
 
         void ReadMessages()
         {
             while (keepAlive)
             {
+                string s = "null";
                 try
                 {
-                    string s = clientIn.ReadLine();
-                    //Console.WriteLine("//got something from: " + RemotePort);
-                    if (s == "closing")
-                        Disconnect(DisconnectReason.Message);
-                    else
-                        MessageRecieved(s, RemotePort);
+                    s = clientIn.ReadLine();
                 }
-                catch { Console.WriteLine("//exception caught"); }
+                catch 
+                { 
+                    Console.WriteLine("//Disconnect from " + Program.ConvertToPort(RemotePort)); 
+                }
+                    //Console.WriteLine("//got something from: " + RemotePort);
+                if (s == "closing")
+                    Disconnect(DisconnectReason.Message);
+                else if (s == "null")
+                    ;
+                else
+                    mHandler(s, RemotePort);
             }
         }
 
