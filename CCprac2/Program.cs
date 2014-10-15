@@ -19,6 +19,8 @@ namespace NetwProg
         List<int> myNeighbors;
         public Client[] connections;
         public Queue<string>[] messageQueues;
+        AutoResetEvent[] waiter;
+
         object locker;
         static void Main(string[] args)
         {
@@ -42,10 +44,12 @@ namespace NetwProg
 
             //create an array to accomodate for a connection to each port.
             connections = new Client[maxNodes];
+            waiter = new AutoResetEvent[maxNodes];
             messageQueues = new Queue<string>[maxNodes];
             for (int i = 0; i < maxNodes; i++)
             {
                 messageQueues[i] = new Queue<string>();
+                waiter[i] = new AutoResetEvent(false);
             }
 
             //set the console title to port nr.
@@ -109,10 +113,17 @@ namespace NetwProg
                 else if (s[0] == "C")
                 {
                     int remotePort = ConvertFromPort(int.Parse(s[1]));
+                    //lock (locker)
+                    //{
+                    //    Nb[remotePort] = remotePort;
+                    //    D[remotePort] = 1;
+                    //    Console.WriteLine("/manually set Nb and D");
+                    //}
                     TcpClient c = new TcpClient("localhost", ConvertToPort(remotePort));
                     AddClient(c);
-                    Console.WriteLine("// connection added: " + remotePort);
+                    myNeighbors.Add(remotePort);
                     SendMessage("new," + myPort, remotePort);
+                    waiter[remotePort].WaitOne();
                     NewConnection(remotePort);
                 }
                 else if (s[0] == "R")
@@ -163,7 +174,14 @@ namespace NetwProg
             }
             else if (mParts[0] == "new")
             {
-                NewConnection(int.Parse(mParts[1]));
+                int rp = int.Parse(mParts[1]);
+                myNeighbors.Add(rp);
+                SendMessage("OK,"+myPort, rp);
+                NewConnection(rp);
+            }
+            else if (mParts[0] == "OK") 
+            {
+                waiter[int.Parse(mParts[1])].Set();
             }
             else
             {
@@ -180,13 +198,11 @@ namespace NetwProg
 
         private void NewConnection(int remotePort)
         {
-            myNeighbors.Add(remotePort);
-            for (int i = 0; i < maxNodes; i++)
-            {
-                ndis[remotePort][i] = maxNodes;
-                SendMyDist(remotePort, i, D[i]);
-                Console.WriteLine("//sent md to: " + i);
-            }
+                for (int i = 0; i < maxNodes; i++)
+                {
+                    SendMyDist(remotePort, i, D[i]);
+                    //Console.WriteLine("//sent md to: " + );
+                }
         }
 
         private void ConnectionClosed(int remotePort)
@@ -199,6 +215,7 @@ namespace NetwProg
             }
             for (int v = 0; v < maxNodes; v++)
             {
+                ndis[remotePort][v] = maxNodes;
                 if (Nb[v] == remotePort)
                     Recompute(v);
             }

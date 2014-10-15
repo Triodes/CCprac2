@@ -109,9 +109,7 @@ namespace NetwProg
                     //Console.WriteLine("//got something from: " + RemotePort);
                 if (s == "closing")
                     Disconnect(DisconnectReason.Message);
-                else if (s == "null")
-                    ;
-                else
+                else if (s != "null" && s != null)
                     mHandler(s, RemotePort);
             }
         }
