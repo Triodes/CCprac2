@@ -13,7 +13,7 @@ namespace NetwProg
         TcpListener server;
         public void Listen(object p)
         {
-            server = new TcpListener(IPAddress.Any, Program.myPort);
+            server = new TcpListener(IPAddress.Any, Program.ConvertToPort(Program.myPort));
             server.Start();
             Console.WriteLine("//listening on port " + Program.ConvertToPort(Program.myPort));
             try

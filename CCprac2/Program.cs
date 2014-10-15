@@ -64,7 +64,7 @@ namespace NetwProg
             {
                 if (myNeighbors[i] > myPort)
                 {
-                    TcpClient c = new TcpClient("localhost", myNeighbors[i]);
+                    TcpClient c = new TcpClient("localhost", ConvertToPort(myNeighbors[i]));
                     AddClient(c);
                 }
             }
@@ -109,8 +109,9 @@ namespace NetwProg
                 else if (s[0] == "C")
                 {
                     int remotePort = ConvertFromPort(int.Parse(s[1]));
-                    TcpClient c = new TcpClient("localhost", remotePort);
+                    TcpClient c = new TcpClient("localhost", ConvertToPort(remotePort));
                     AddClient(c);
+                    Console.WriteLine("// connection added: " + remotePort);
                     SendMessage("new," + myPort, remotePort);
                     NewConnection(remotePort);
                 }
@@ -184,6 +185,7 @@ namespace NetwProg
             {
                 ndis[remotePort][i] = maxNodes;
                 SendMyDist(remotePort, i, D[i]);
+                Console.WriteLine("//sent md to: " + i);
             }
         }
 
@@ -191,6 +193,10 @@ namespace NetwProg
         {
             connections[remotePort] = null;
             myNeighbors.Remove(remotePort);
+            lock(messageQueues[remotePort])
+            {
+                messageQueues[remotePort].Clear();
+            }
             for (int v = 0; v < maxNodes; v++)
             {
                 if (Nb[v] == remotePort)
@@ -274,7 +280,7 @@ namespace NetwProg
         {
             lock (locker)
             {
-                int CurrentDv = D[remotePort], bestNb = -1;
+                int CurrentDv = D[remotePort], bestNb = -1, currNb = Nb[remotePort];
                 if (remotePort == myPort)
                 {
                     D[remotePort] = 0;
@@ -305,11 +311,12 @@ namespace NetwProg
                         D[remotePort] = maxNodes;
                         Nb[remotePort] = -1;
                     }
+                    if (D[remotePort] != CurrentDv || currNb != Nb[remotePort])
+                        Console.WriteLine("Afstand naar {0} is nu {1} via {2}", ConvertToPort(remotePort), D[remotePort], ConvertToPort(Nb[remotePort])); //bestNb or Nb[remotePort]???
                 }
 
                 if (D[remotePort] != CurrentDv)
-                {
-                    Console.WriteLine("Afstand naar {0} is nu {1} via {2}", ConvertToPort(remotePort), D[remotePort], ConvertToPort(bestNb));
+                {                    
                     Parallel.For(0, myNeighbors.Count, (int iterator) =>
                     {
                         SendMyDist(myNeighbors[iterator], remotePort, D[remotePort]);
