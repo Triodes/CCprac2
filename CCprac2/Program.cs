@@ -21,6 +21,9 @@ namespace NetwProg
         public Queue<string>[] messageQueues;
         AutoResetEvent[] waiter;
 
+        bool[] DiscoveredNodes;
+        int cycleLimit;
+
         object locker;
         static void Main(string[] args)
         {
@@ -46,12 +49,20 @@ namespace NetwProg
             connections = new Client[maxNodes];
             waiter = new AutoResetEvent[maxNodes];
             messageQueues = new Queue<string>[maxNodes];
+            DiscoveredNodes = new bool[maxNodes];
             for (int i = 0; i < maxNodes; i++)
             {
                 messageQueues[i] = new Queue<string>();
                 waiter[i] = new AutoResetEvent(false);
+                DiscoveredNodes[i] = false;
             }
 
+            DiscoveredNodes[myPort] = true;
+            for (int i = 0; i < myNeighbors.Count; i++)
+            {
+                DiscoveredNodes[myNeighbors[i]] = true;
+            }
+            cycleLimit = myNeighbors.Count + 1;
             //set the console title to port nr.
             Console.Title = "Netchange " + ConvertToPort(myPort);          
 
@@ -152,9 +163,19 @@ namespace NetwProg
         {
             string[] mParts = message.Split(',');
             if (mParts[0] == "myDist")
-            {
+            {                
                 int v = int.Parse(mParts[1]);
-                ndis[remotePort][v] = int.Parse(mParts[2]);
+                int dist = int.Parse(mParts[2]);
+                lock (DiscoveredNodes)
+                {
+                    if (!DiscoveredNodes[v] && dist != maxNodes)
+                    {
+                        DiscoveredNodes[v] = true;
+                        cycleLimit++;
+                        //Console.WriteLine("//found node {0}, nr of nodes is now {1}, value {2}", v, cycleLimit, dist);
+                    }
+                }
+                ndis[remotePort][v] = dist;
                 //Console.WriteLine("//got mydist from {0}: {1},{2}", remotePort, mParts[1], mParts[2]);
                 Recompute(v);
             }
@@ -328,8 +349,10 @@ namespace NetwProg
                         D[remotePort] = maxNodes;
                         Nb[remotePort] = -1;
                     }
-                    if (D[remotePort] != CurrentDv || currNb != Nb[remotePort])
+                    if ((D[remotePort] != CurrentDv || currNb != Nb[remotePort]) && D[remotePort] != maxNodes)
                         Console.WriteLine("Afstand naar {0} is nu {1} via {2}", ConvertToPort(remotePort), D[remotePort], ConvertToPort(Nb[remotePort])); //bestNb or Nb[remotePort]???
+                    if (CurrentDv < maxNodes && D[remotePort] >= maxNodes)
+                        Console.WriteLine("Onbereikbaar: " + ConvertToPort(remotePort));
                 }
 
                 if (D[remotePort] != CurrentDv)
