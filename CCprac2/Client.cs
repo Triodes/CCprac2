@@ -70,7 +70,11 @@ namespace NetwProg
 
         void SendMessage(string message)
         {
-            clientOut.WriteLine(message);
+            try
+            {
+                clientOut.WriteLine(message);
+            }
+            catch { }
             //Console.WriteLine("//sent something to: " + RemotePort);
         }
 
@@ -83,6 +87,10 @@ namespace NetwProg
 
         public void Disconnect(DisconnectReason reason)
         {
+            lock (messageQueue)
+            {
+                messageQueue.Clear();
+            }
             keepAlive = false;
             if (reason == DisconnectReason.Command) SendMessage("closing");
             socket.Close();

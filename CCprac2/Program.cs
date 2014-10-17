@@ -305,7 +305,7 @@ namespace NetwProg
                 }
                 else
                 {
-                    int d = int.MaxValue;
+                    int d = int.MaxValue-1;
                     for (int i = 0; i < myNeighbors.Count; i++)
                     {
                         int temp = ndis[myNeighbors[i]][remotePort];
