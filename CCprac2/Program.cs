@@ -36,7 +36,8 @@ namespace NetwProg
         bool[] discoveredNodes;
 
         //locking objects
-        object locker, cycleLock;
+        object[] locker;
+        object cycleLock;
         static void Main(string[] args)
         {
             Program p = new Program(args);
@@ -45,7 +46,7 @@ namespace NetwProg
         public Program(string[] input)
         {
             //create locking object
-            locker = new object();
+            locker = new object[maxNodes];
             cycleLock = new object();
 
             //parse my port
@@ -66,6 +67,7 @@ namespace NetwProg
             {
                 messageQueues[i] = new Queue<string>();
                 waiter[i] = new AutoResetEvent(false);
+                locker[i] = new object();
             }
 
             blocker = new ManualResetEvent(false);
@@ -92,13 +94,16 @@ namespace NetwProg
             t.Start(this);
 
             //Connect to neighboring hosts
-            for (int i = 0; i < myNeighbors.Count; i++)
+            lock (myNeighbors)
             {
-                if (myNeighbors[i] > myPort)
+                for (int i = 0; i < myNeighbors.Count; i++)
                 {
-                    TcpClient c = new TcpClient("localhost", ConvertToPort(myNeighbors[i]));
-                    AddClient(c);
-                }
+                    if (myNeighbors[i] > myPort)
+                    {
+                        TcpClient c = new TcpClient("localhost", ConvertToPort(myNeighbors[i]));
+                        AddClient(c);
+                    }
+                } 
             }
 
             //send all initial mydists
@@ -155,7 +160,10 @@ namespace NetwProg
                     AddClient(c);
 
                     //add the new neighbor to the list of neighbors
-                    myNeighbors.Add(remotePort);
+                    lock (myNeighbors)
+                    {
+                        myNeighbors.Add(remotePort); 
+                    }
 
                     //notify other node of new connection
                     SendMessage("new," + myPort, remotePort);
@@ -252,7 +260,10 @@ namespace NetwProg
                 int rp = int.Parse(mParts[1]);
 
                 //add new neighbor to list of neighbors
-                myNeighbors.Add(rp);
+                lock (myNeighbors)
+                {
+                    myNeighbors.Add(rp); 
+                }
 
                 //send confirmation of addition to new neighbor
                 SendMessage("OK," + myPort, rp);
@@ -314,7 +325,10 @@ namespace NetwProg
             connections[remotePort] = null;
 
             //remove neighbor from list
-            myNeighbors.Remove(remotePort);
+            lock (myNeighbors)
+            {
+                myNeighbors.Remove(remotePort); 
+            }
 
             //clear the buffer
             lock (messageQueues[remotePort])
@@ -437,10 +451,13 @@ namespace NetwProg
         /// </summary>
         private void SendInit()
         {
-            Parallel.For(0, myNeighbors.Count, (iterator) =>
+            lock (myNeighbors)
             {
-                SendMyDist(myNeighbors[iterator], myPort, 0);
-            });
+                Parallel.For(0, myNeighbors.Count, (iterator) =>
+        {
+            SendMyDist(myNeighbors[iterator], myPort, 0);
+        }); 
+            }
         }
 
         /// <summary>
@@ -449,7 +466,7 @@ namespace NetwProg
         /// <param name="remotePort">the node to recompute</param>
         private void Recompute(int remotePort)
         {
-            lock (locker)
+            lock (locker[remotePort])
             {
                 //gets the current estimated distance, sets the best found neighbor to nothing, and gets the current neighbor
                 int CurrentDv = D[remotePort], bestNb = -1, currNb = Nb[remotePort];
@@ -469,14 +486,17 @@ namespace NetwProg
                     bool reachable;
 
                     //get the shortest nr of hops to the node, and the next hop on this path
-                    for (int i = 0; i < myNeighbors.Count; i++)
+                    lock (myNeighbors)
                     {
-                        int temp = ndis[myNeighbors[i]][remotePort];
-                        if (temp < d)
+                        for (int i = 0; i < myNeighbors.Count; i++)
                         {
-                            d = temp;
-                            bestNb = myNeighbors[i];
-                        }
+                            int temp = ndis[myNeighbors[i]][remotePort];
+                            if (temp < d)
+                            {
+                                d = temp;
+                                bestNb = myNeighbors[i];
+                            }
+                        } 
                     }
                     d++;
 
@@ -517,10 +537,13 @@ namespace NetwProg
                 //if the distance to a node has changed: send MD's to all neighbors
                 if (D[remotePort] != CurrentDv)
                 {
-                    Parallel.For(0, myNeighbors.Count, (iterator) =>
+                    lock (myNeighbors)
                     {
-                        SendMyDist(myNeighbors[iterator], remotePort, D[remotePort]);
-                    });
+                        Parallel.For(0, myNeighbors.Count, (iterator) =>
+                {
+                    SendMyDist(myNeighbors[iterator], remotePort, D[remotePort]);
+                }); 
+                    }
                     //Console.WriteLine("//sent MD's for port {0} and dist {1}",remotePort, D[remotePort]);
                 }
             }
