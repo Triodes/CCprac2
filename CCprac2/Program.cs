@@ -32,6 +32,7 @@ namespace NetwProg
 
         //limit on which nodes are deemed unreachable
         int cycleLimit;
+        bool[] discoveredNodes;
 
         //locking objects
         object locker, cycleLock;
@@ -67,6 +68,13 @@ namespace NetwProg
             }
 
             //set the limit to known number of nodes
+            discoveredNodes = new bool[maxNodes];
+            for (int i = 0; i < maxNodes; i++) { discoveredNodes[i] = false; }
+            for (int i = 0; i < myNeighbors.Count; i++)
+            {
+                discoveredNodes[myNeighbors[i]] = true;                
+            }
+            discoveredNodes[myPort] = true;
             cycleLimit = myNeighbors.Count + 1;
 
             //set the console title to port nr.
@@ -196,9 +204,10 @@ namespace NetwProg
                 //check if the cycle limit is still correct, if not update and recompute previously deemed unreachable nodes
                 lock (cycleLock)
                 {
-                    if (v + 1 > cycleLimit && dist < maxNodes)
+                    if (!discoveredNodes[v] && dist < maxNodes)
                     {
-                        cycleLimit = v + 1;
+                        discoveredNodes[v] = true;
+                        cycleLimit++;
                         Console.WriteLine("//found {0}, cycle limit is now {1}", v, cycleLimit);
                         for (int i = 0; i < maxNodes; i++)
                         {
