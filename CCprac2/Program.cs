@@ -153,6 +153,11 @@ namespace NetwProg
                     {
                         cycleLimit = v + 1;
                         Console.WriteLine("//found {0}, cycle limit is now {1}", v, cycleLimit);
+                        for (int i = 0; i < maxNodes; i++)
+                        {
+                            if (rejectedOn[i] < cycleLimit)
+                                Recompute(i);
+                        }
                     }
                 }
                 //lock (DiscoveredNodes)
@@ -284,6 +289,8 @@ namespace NetwProg
         int[] D = new int[maxNodes];
         int[] Nb = new int[maxNodes];
 
+        int[] rejectedOn = new int[maxNodes];
+
         private void InitRoutingData()
         {
             for (int i = 0; i < maxNodes; i++)
@@ -299,6 +306,8 @@ namespace NetwProg
             {
                 D[i] = maxNodes;
                 Nb[i] = -1;
+
+                rejectedOn[i] = int.MaxValue;
             }
 
             D[myPort] = 0;
@@ -326,6 +335,7 @@ namespace NetwProg
                 else
                 {
                     int d = int.MaxValue - 1;
+                    bool reachable;
                     for (int i = 0; i < myNeighbors.Count; i++)
                     {
                         int temp = ndis[myNeighbors[i]][remotePort];
@@ -338,20 +348,27 @@ namespace NetwProg
 
                     d++;
 
-                    if (d < maxNodes)
+                    lock (cycleLock)
                     {
-                        D[remotePort] = d;
-                        Nb[remotePort] = bestNb;
+                        if (d < cycleLimit)
+                        {
+                            D[remotePort] = d;
+                            Nb[remotePort] = bestNb;
+                            reachable = true;
+                            rejectedOn[remotePort] = int.MaxValue;
+                        }
+                        else
+                        {
+                            Console.WriteLine("//port {0} unreachable on limit {1}", remotePort, cycleLimit);
+                            D[remotePort] = maxNodes;
+                            Nb[remotePort] = -1;
+                            reachable = false;
+                            rejectedOn[remotePort] = cycleLimit;
+                        } 
                     }
-                    else
-                    {
-                        Console.WriteLine("//port {0} unreachable on limit {1}",remotePort,cycleLimit);
-                        D[remotePort] = maxNodes;
-                        Nb[remotePort] = -1;
-                    }
-                    if ((D[remotePort] != CurrentDv || currNb != Nb[remotePort]) && D[remotePort] != maxNodes && Nb[remotePort] != -1)
+                    if ((D[remotePort] != CurrentDv || currNb != Nb[remotePort]) && reachable)
                         Console.WriteLine("Afstand naar {0} is nu {1} via {2}", ConvertToPort(remotePort), D[remotePort], ConvertToPort(Nb[remotePort])); //bestNb or Nb[remotePort]???
-                    if (D[remotePort] >= maxNodes)
+                    if (!reachable)//D[remotePort] >= cycleLimit)
                         Console.WriteLine("Onbereikbaar: " + ConvertToPort(remotePort));
                 }
 
