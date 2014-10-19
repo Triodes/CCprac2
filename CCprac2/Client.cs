@@ -114,14 +114,14 @@ namespace NetwProg
         /// <param name="reason">reason</param>
         public void Disconnect(DisconnectReason reason)
         {
+            //set flag so message reading thread terminates
+            keepAlive = false;
+
             //clear buffer
             lock (messageQueue)
             {
                 messageQueue.Clear();
             }
-
-            //set flag so message reading thread terminates
-            keepAlive = false;
 
             //if disconnect was commanded on this side: notify other end
             if (reason == DisconnectReason.Command) SendMessage("closing");
@@ -135,7 +135,7 @@ namespace NetwProg
 
             //notify
             Console.WriteLine("Verbroken: " + Program.ConvertToPort(RemotePort));
-            Console.WriteLine("//Disconnected from: " + RemotePort + " | Reason: " + reason);
+            Console.WriteLine("//Disconnected from: " + Program.ConvertToPort(RemotePort) + " | Reason: " + reason);
 
             //call the handler to handle the disconnect
             cHandler(RemotePort);
@@ -154,9 +154,12 @@ namespace NetwProg
                     //read incoming messages
                     s = clientIn.ReadLine();
                 }
-                catch 
-                { 
-                    Console.WriteLine("//Disconnect from " + Program.ConvertToPort(RemotePort)); 
+                catch
+                {
+                    if (keepAlive)
+                    {
+                        Disconnect(DisconnectReason.Termination);
+                    }
                 }
                     //Console.WriteLine("//got something from: " + RemotePort);
                 if (s == "closing")
