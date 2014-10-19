@@ -201,6 +201,8 @@ namespace NetwProg
                 //the distance in the MD
                 int dist = int.Parse(mParts[2]);
 
+                Console.WriteLine("//recieved MD dest: {0}, dist: {1}, from: {2}",v,dist,remotePort);
+                
                 //set ndis
                 ndis[remotePort][v] = dist;
 
@@ -429,7 +431,7 @@ namespace NetwProg
         /// </summary>
         private void SendInit()
         {
-            Parallel.For(0, myNeighbors.Count, (int iterator) =>
+            Parallel.For(0, myNeighbors.Count, (iterator) =>
             {
                 SendMyDist(myNeighbors[iterator], myPort, 0);
             });
@@ -509,10 +511,11 @@ namespace NetwProg
                 //if the distance to a node has changed: send MD's to all neighbors
                 if (D[remotePort] != CurrentDv)
                 {
-                    Parallel.For(0, myNeighbors.Count, (int iterator) =>
+                    Parallel.For(0, myNeighbors.Count, (iterator) =>
                     {
                         SendMyDist(myNeighbors[iterator], remotePort, D[remotePort]);
                     });
+                    Console.WriteLine("//sent out MD's for node {0} with D {1}",remotePort,D[remotePort]);
                 }
             }
         }
