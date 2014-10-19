@@ -29,6 +29,7 @@ namespace NetwProg
 
         //thread blockers for each connections
         AutoResetEvent[] waiter;
+        public static ManualResetEvent blocker;
 
         //limit on which nodes are deemed unreachable
         int cycleLimit;
@@ -67,6 +68,8 @@ namespace NetwProg
                 waiter[i] = new AutoResetEvent(false);
             }
 
+            blocker = new ManualResetEvent(false);
+
             //set the limit to known number of nodes
             discoveredNodes = new bool[maxNodes];
             for (int i = 0; i < maxNodes; i++) { discoveredNodes[i] = false; }
@@ -100,6 +103,9 @@ namespace NetwProg
 
             //send all initial mydists
             SendInit();
+
+            //release all readers
+            blocker.Set();
 
             //start reading console input
             ReadConsoleInput();
@@ -201,7 +207,7 @@ namespace NetwProg
                 //the distance in the MD
                 int dist = int.Parse(mParts[2]);
 
-                Console.WriteLine("//recieved MD dest: {0}, dist: {1}, from: {2}",v,dist,remotePort);
+                //Console.WriteLine("//recieved MD dest: {0}, dist: {1}, from: {2}",v,dist,remotePort);
                 
                 //set ndis
                 ndis[remotePort][v] = dist;
@@ -515,7 +521,7 @@ namespace NetwProg
                     {
                         SendMyDist(myNeighbors[iterator], remotePort, D[remotePort]);
                     });
-                    Console.WriteLine("//sent out MD's for node {0} with D {1}",remotePort,D[remotePort]);
+                    //Console.WriteLine("//sent MD's for port {0} and dist {1}",remotePort, D[remotePort]);
                 }
             }
         }

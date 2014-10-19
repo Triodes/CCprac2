@@ -143,6 +143,9 @@ namespace NetwProg
 
         void ReadMessages()
         {
+            //block the reader
+            Program.blocker.WaitOne();
+
             while (keepAlive)
             {
                 string s = "null";
