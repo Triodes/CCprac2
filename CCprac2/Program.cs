@@ -201,6 +201,9 @@ namespace NetwProg
                 //the distance in the MD
                 int dist = int.Parse(mParts[2]);
 
+                //set ndis
+                ndis[remotePort][v] = dist;
+
                 //check if the cycle limit is still correct, if not update and recompute previously deemed unreachable nodes
                 lock (cycleLock)
                 {
@@ -217,8 +220,6 @@ namespace NetwProg
                     }
                 }
 
-                //set ndis and recompute
-                ndis[remotePort][v] = dist;
                 Recompute(v);
             }
             else if (mParts[0] == "message") //if its a text message
