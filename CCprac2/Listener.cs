@@ -13,11 +13,14 @@ namespace NetwProg
         TcpListener server;
         public void Listen(object p)
         {
+            //start a new listener
             server = new TcpListener(IPAddress.Any, Program.ConvertToPort(Program.myPort));
             server.Start();
             Console.WriteLine("//listening on port " + Program.ConvertToPort(Program.myPort));
+
             try
             {
+                //listen for incoming connections indefinetly
                 while (true)
                 {
                     TcpClient temp = server.AcceptTcpClient();
