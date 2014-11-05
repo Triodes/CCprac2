@@ -11,6 +11,7 @@ namespace NetwProg
 {
     class Client
     {
+        
         /// <summary>
         /// Port identifying this connection
         /// </summary>
@@ -26,7 +27,7 @@ namespace NetwProg
 
         //handlers for handling messages and disconnects
         MessageRecievedHandler mHandler;
-        ConnectionCLosedHandler cHandler;
+        ConnectionClosedHandler cHandler;
 
         //flag telling if the connection needs to live
         //needed to terminate thread that handles incoming messages
@@ -34,9 +35,9 @@ namespace NetwProg
 
         public delegate void MessageRecievedHandler(string message, int remotePort);
 
-        public delegate void ConnectionCLosedHandler(int remotePort);
+        public delegate void ConnectionClosedHandler(int remotePort);
 
-        public Client(TcpClient socket, MessageRecievedHandler mHandler, ConnectionCLosedHandler cHandler)
+        public Client(TcpClient socket, MessageRecievedHandler mHandler, ConnectionClosedHandler cHandler)
         {
             this.socket = socket;
             this.mHandler = mHandler;
